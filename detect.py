@@ -74,7 +74,7 @@ def receive_udp_audio(port=12202):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("", port))
 
-    print(f"Listening on UDP port {port}")
+    print(f"Listening on UDP port {port}", flush=True)
 
     audio_buffer = []
     while True:
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     mqtt.on_message = mqtt_on_message
     mqtt.username_pw_set(config["mqtt"]["username"], config["mqtt"]["password"])
     mqtt.connect(config["mqtt"]["broker"], config["mqtt"]["port"], 60)
-    print("Connected to MQTT broker")
+    print("Connected to MQTT broker", flush=True)
 
     oww = Model(
         vad_threshold=config["oww"]["vad_threshold"],
@@ -128,7 +128,7 @@ if __name__ == "__main__":
             prediction_level = prediction[model_name]
             if prediction_level >= config["oww"]["activation_threshold"]:
                 delta = time.time() - published
-                print(f"{model_name} {prediction_level:.3f} {delta:.3f}")
+                print(f"{model_name} {prediction_level:.3f} {delta:.3f}", flush=True)
                 if delta > config["oww"]["activation_ratelimit"]:
                     payload = {
                         "modelId": model_name,
@@ -144,7 +144,8 @@ if __name__ == "__main__":
                     mqtt.publish(
                         f"hermes/hotword/{model_name}/detected", dumps(payload)
                     )
-                    print("Sent wakeword to Rhasspy")
+                    print("Sent wakeword to Rhasspy", flush=True)
                 published = time.time()
         if not receive_audio_thread.is_alive:
+            print("Audio thread crashed, exiting application")
             exit()
