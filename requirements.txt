@@ -1,1 +1,3 @@
-openwakeword
+openwakeword @ git+https://github.com/dscripka/openWakeWord
+paho-mqtt
+pyyaml

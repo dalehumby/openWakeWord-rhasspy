@@ -1,0 +1,15 @@
+# Configuration for using Open Wake Work with Rhasspy voice assistant
+
+mqtt:
+  broker: 127.0.0.1
+  port: 1883
+  username: mymqttusername  # Login to broker. Delete if not required
+  password: mymqttpassword  # Login to broker. Delete if not required
+
+# Open Wake Word config
+# https://github.com/dscripka/openWakeWord#recommendations-for-usage
+oww:
+  activation_threshold: 0.5
+  vad_threshold: 0.5
+  enable_speex_noise_suppression: false
+
