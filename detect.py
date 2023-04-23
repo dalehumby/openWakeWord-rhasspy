@@ -36,9 +36,12 @@ args = parser.parse_args()
 
 
 def load_config(config_file):
-    """Load the configuration from config.yaml file and use it to override the defaults."""
-    with open(config_file, "r") as f:
-        config_override = yaml.safe_load(f)
+    """Use config.yaml to override the default configuration."""
+    try:
+        with open(config_file, "r") as f:
+            config_override = yaml.safe_load(f)
+    except FileNotFoundError:
+        config_override = {}
 
     default_config = {
         "mqtt": {
@@ -79,7 +82,7 @@ def receive_udp_audio(port=12202):
         audio = wave.open(io.BytesIO(data))
         frames = audio.readframes(RHASSPY_FRAMES)
         audio_buffer.extend(np.frombuffer(frames, dtype=np.int16))
-        print(".", end="", flush=True)
+        # print(".", end="", flush=True)  # TODO can remove
         if len(audio_buffer) > OWW_FRAMES:
             q.put(
                 np.asarray(audio_buffer[:OWW_FRAMES], dtype=np.int16)
