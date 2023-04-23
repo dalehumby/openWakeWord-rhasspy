@@ -143,3 +143,5 @@ if __name__ == "__main__":
                     )
                     print("Sent wakeword to Rhasspy")
                 published = time.time()
+        if not receive_audio_thread.is_alive:
+            exit()
