@@ -1,3 +1,8 @@
+"""
+Listen on UDP for audio from Rhasspy, detect wake words using Open Wake Word,
+and then publish on MQTT when wake word is detected to trigger Rhasspy speech-to-text.
+"""
+
 import argparse
 import io
 import queue
@@ -8,7 +13,7 @@ import wave
 from json import dumps
 
 import numpy as np
-import paho.mqtt.client as mqtt
+import paho.mqtt.client
 import yaml
 from openwakeword.model import Model
 
@@ -19,7 +24,7 @@ OWW_FRAMES = CHUNK * 3  # Increase efficiency of detection but higher latency
 
 q = queue.Queue()
 
-parser = argparse.ArgumentParser(description="PiJuice to MQTT")
+parser = argparse.ArgumentParser(description="Open Wake Word detection for Rhasspy")
 parser.add_argument(
     "-c",
     "--config",
@@ -31,7 +36,7 @@ args = parser.parse_args()
 
 
 def load_config(config_file):
-    """Load the configuration from config yaml file and use it to override the defaults."""
+    """Load the configuration from config.yaml file and use it to override the defaults."""
     with open(config_file, "r") as f:
         config_override = yaml.safe_load(f)
 
@@ -46,14 +51,16 @@ def load_config(config_file):
             "activation_threshold": 0.5,
             "vad_threshold": 0,
             "enable_speex_noise_suppression": False,
+            "activation_ratelimit": 5,
         },
+        "rhasspy": {"audio_udp_port": 12202},
     }
 
     config = {**default_config, **config_override}
     return config
 
 
-def receive_udp_audio(port=12102):
+def receive_udp_audio(port=12202):
     """
     Get audio from UDP stream and add to wake word detection queue.
 
@@ -80,11 +87,12 @@ def receive_udp_audio(port=12102):
             audio_buffer = audio_buffer[OWW_FRAMES:]
 
 
-def on_connect(client, userdata, flags, rc):
-    client.subscribe("hermes/hotword/#")
+def mqtt_on_connect(mqtt, userdata, flags, rc):
+    # mqtt.subscribe("hermes/hotword/#")
+    pass
 
 
-def on_message(client, userdata, msg):
+def mqtt_on_message(mqtt, userdata, msg):
     # print(f"{msg.topic} {msg.payload}")
     pass
 
@@ -92,22 +100,25 @@ def on_message(client, userdata, msg):
 config = load_config(args.config_file)
 
 if __name__ == "__main__":
-    client = mqtt.Client()
-    client.on_connect = on_connect
-    client.on_message = on_message
-    client.username_pw_set(config["mqtt"]["username"], config["mqtt"]["password"])
-    client.connect(config["mqtt"]["broker"], config["mqtt"]["port"], 60)
+    mqtt = paho.mqtt.client.Client()
+    mqtt.on_connect = mqtt_on_connect
+    mqtt.on_message = mqtt_on_message
+    mqtt.username_pw_set(config["mqtt"]["username"], config["mqtt"]["password"])
+    mqtt.connect(config["mqtt"]["broker"], config["mqtt"]["port"], 60)
     print("Connected to MQTT broker")
 
     oww = Model(
         vad_threshold=config["oww"]["vad_threshold"],
         enable_speex_noise_suppression=config["oww"]["enable_speex_noise_suppression"],
     )
-    receive_audio_thread = threading.Thread(target=receive_udp_audio)
+    receive_audio_thread = threading.Thread(
+        target=receive_udp_audio, kwargs={"port": config["rhasspy"]["audio_udp_port"]}
+    )
+    receive_audio_thread.daemon = True
     receive_audio_thread.start()
 
     published = 0
-    client.loop_start()
+    mqtt.loop_start()
     while True:
         prediction = oww.predict(q.get())
         for model_name in prediction.keys():
@@ -115,7 +126,7 @@ if __name__ == "__main__":
             if prediction_level >= config["oww"]["activation_threshold"]:
                 delta = time.time() - published
                 print(f"{model_name} {prediction_level:.3f} {delta:.3f}")
-                if delta > 5:
+                if delta > config["oww"]["activation_ratelimit"]:
                     payload = {
                         "modelId": model_name,
                         "modelVersion": "",
@@ -127,7 +138,7 @@ if __name__ == "__main__":
                         "lang": None,
                         "customEntities": None,
                     }
-                    client.publish(
+                    mqtt.publish(
                         f"hermes/hotword/{model_name}/detected", dumps(payload)
                     )
                     print("Sent wakeword to Rhasspy")

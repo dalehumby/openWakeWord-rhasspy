@@ -12,4 +12,8 @@ oww:
   activation_threshold: 0.5
   vad_threshold: 0.5
   enable_speex_noise_suppression: false
+  activation_ratelimit: 5  # Only 1 activation will be sent to Rhasspy in 5 seconds
+
+rhasspy:
+  audio_udp_port: 12202  # Port that Rhasspy streams audio on, https://rhasspy.readthedocs.io/en/latest/tutorials/#udp-audio-streaming
 
