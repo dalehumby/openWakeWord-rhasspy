@@ -90,22 +90,10 @@ def receive_udp_audio(port=12202):
             audio_buffer = audio_buffer[OWW_FRAMES:]
 
 
-def mqtt_on_connect(mqtt, userdata, flags, rc):
-    # mqtt.subscribe("hermes/hotword/#")
-    pass
-
-
-def mqtt_on_message(mqtt, userdata, msg):
-    # print(f"{msg.topic} {msg.payload}")
-    pass
-
-
 config = load_config(args.config_file)
 
 if __name__ == "__main__":
     mqtt = paho.mqtt.client.Client()
-    mqtt.on_connect = mqtt_on_connect
-    mqtt.on_message = mqtt_on_message
     mqtt.username_pw_set(config["mqtt"]["username"], config["mqtt"]["password"])
     mqtt.connect(config["mqtt"]["broker"], config["mqtt"]["port"], 60)
     print("Connected to MQTT broker", flush=True)
