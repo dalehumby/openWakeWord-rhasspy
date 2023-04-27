@@ -22,7 +22,6 @@ RHASSPY_FRAMES = 1024
 CHUNK = 1280  # 80 ms window @ 16 kHz = 1280 frames
 OWW_FRAMES = CHUNK * 3  # Increase efficiency of detection but higher latency
 
-q = queue.Queue()
 
 parser = argparse.ArgumentParser(description="Open Wake Word detection for Rhasspy")
 parser.add_argument(
@@ -56,84 +55,113 @@ def load_config(config_file):
             "enable_speex_noise_suppression": False,
             "activation_ratelimit": 5,
         },
-        "rhasspy": {"audio_udp_port": 12202},
+        "udp_ports": {"base": 12202},
     }
 
     config = {**default_config, **config_override}
     return config
 
 
-def receive_udp_audio(port=12202):
-    """
-    Get audio from UDP stream and add to wake word detection queue.
+class RhasspyUdpAudio(threading.Thread):
+    """Get audio from UDP stream and add to wake word detection queue."""
 
-    Rhasspy sends 1024 x 16bit frames + header = 2092 bytes
-    Open Wake Word expects minimum of 1280 x 16bit frames
-    """
+    def __init__(self, roomname, port, queue):
+        threading.Thread.__init__(self)
+        self._roomname = roomname
+        self._port = port
+        self._queue = queue
+        self._buffer = []
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._sock.bind(("", port))
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("", port))
+    def run(self):
+        """Thread to receive UDP audio and add to processing queue."""
+        print(
+            f"Listening for {self._roomname} audio on UDP port {self._port}", flush=True
+        )
+        while True:
+            data, addr = self._sock.recvfrom(RHASSPY_BYTES)
+            audio = wave.open(io.BytesIO(data))
+            frames = audio.readframes(RHASSPY_FRAMES)
+            self._buffer.extend(np.frombuffer(frames, dtype=np.int16))
+            if len(self._buffer) > OWW_FRAMES:
+                self._queue.put(
+                    {
+                        "roomname": self._roomname,
+                        "timestamp": time.time(),
+                        "audio": np.asarray(self._buffer[:OWW_FRAMES], dtype=np.int16),
+                    }
+                )
+                self._buffer = self._buffer[OWW_FRAMES:]
 
-    print(f"Listening on UDP port {port}", flush=True)
 
-    audio_buffer = []
-    while True:
-        data, addr = sock.recvfrom(RHASSPY_BYTES)
-        audio = wave.open(io.BytesIO(data))
-        frames = audio.readframes(RHASSPY_FRAMES)
-        audio_buffer.extend(np.frombuffer(frames, dtype=np.int16))
-        # print(".", end="", flush=True)  # TODO can remove
-        if len(audio_buffer) > OWW_FRAMES:
-            q.put(
-                np.asarray(audio_buffer[:OWW_FRAMES], dtype=np.int16)
-            )  # Must be np array for VAD
-            audio_buffer = audio_buffer[OWW_FRAMES:]
+class Prediction(threading.Thread):
+    """Process wake word detection queue and publishing MQTT message when a wake word is detected."""
 
+    def __init__(self, config, queue):
+        threading.Thread.__init__(self)
+        self.config = config
+        self.queue = queue
+        self.published = 0
+        self.mqtt = paho.mqtt.client.Client()
+        self.mqtt.username_pw_set(
+            config["mqtt"]["username"], config["mqtt"]["password"]
+        )
+        self.mqtt.connect(config["mqtt"]["broker"], config["mqtt"]["port"], 60)
+        print("Connected to MQTT broker", flush=True)
 
-config = load_config(args.config_file)
+        self.oww = Model(
+            vad_threshold=config["oww"]["vad_threshold"],
+            enable_speex_noise_suppression=config["oww"][
+                "enable_speex_noise_suppression"
+            ],
+        )
+
+    def run(self):
+        """Wake word detection thread."""
+        while True:
+            roomname, timestamp, audio = self.queue.get()
+            prediction = self.oww.predict(audio)
+            for model_name in prediction.keys():
+                prediction_level = prediction[model_name]
+                if prediction_level >= self.config["oww"]["activation_threshold"]:
+                    delta = time.time() - self.published
+                    print(
+                        f"{roomname} {model_name} {prediction_level:.3f} {delta:.3f}",
+                        flush=True,
+                    )
+                    if delta > self.config["oww"]["activation_ratelimit"]:
+                        self.__publish(model_name, roomname)
+                    self.published = time.time()
+
+    def __publish(self, model_name, roomname):
+        """Publish wake word message to Rhasspy Hermes/MQTT."""
+        payload = {
+            "modelId": model_name,
+            "modelVersion": "",
+            "modelType": "universal",
+            "currentSensitivity": self.config["oww"]["activation_threshold"],
+            "siteId": roomname,
+            "sessionId": None,
+            "sendAudioCaptured": None,
+            "lang": None,
+            "customEntities": None,
+        }
+        self.mqtt.publish(f"hermes/hotword/{model_name}/detected", dumps(payload))
+        print("Sent wakeword to Rhasspy", flush=True)
+
 
 if __name__ == "__main__":
-    mqtt = paho.mqtt.client.Client()
-    mqtt.username_pw_set(config["mqtt"]["username"], config["mqtt"]["password"])
-    mqtt.connect(config["mqtt"]["broker"], config["mqtt"]["port"], 60)
-    print("Connected to MQTT broker", flush=True)
-
-    oww = Model(
-        vad_threshold=config["oww"]["vad_threshold"],
-        enable_speex_noise_suppression=config["oww"]["enable_speex_noise_suppression"],
-    )
-    receive_audio_thread = threading.Thread(
-        target=receive_udp_audio, kwargs={"port": config["rhasspy"]["audio_udp_port"]}
-    )
-    receive_audio_thread.daemon = True
-    receive_audio_thread.start()
-
-    published = 0
-    mqtt.loop_start()
-    while True:
-        prediction = oww.predict(q.get())
-        for model_name in prediction.keys():
-            prediction_level = prediction[model_name]
-            if prediction_level >= config["oww"]["activation_threshold"]:
-                delta = time.time() - published
-                print(f"{model_name} {prediction_level:.3f} {delta:.3f}", flush=True)
-                if delta > config["oww"]["activation_ratelimit"]:
-                    payload = {
-                        "modelId": model_name,
-                        "modelVersion": "",
-                        "modelType": "universal",
-                        "currentSensitivity": config["oww"]["activation_threshold"],
-                        "siteId": "bedroom",
-                        "sessionId": None,
-                        "sendAudioCaptured": None,
-                        "lang": None,
-                        "customEntities": None,
-                    }
-                    mqtt.publish(
-                        f"hermes/hotword/{model_name}/detected", dumps(payload)
-                    )
-                    print("Sent wakeword to Rhasspy", flush=True)
-                published = time.time()
-        if not receive_audio_thread.is_alive:
-            print("Audio thread crashed, exiting application")
-            exit()
+    config = load_config(args.config_file)
+    q = queue.Queue()
+    threads = []
+    for roomname, port in config["udp_ports"].items():
+        t = RhasspyUdpAudio(roomname, port, q)
+        t.daemon = True
+        t.start()
+        threads.append(t)
+    t = Prediction(config, q)
+    t.deamon = True
+    t.start()
+    threads.append(t)
+    print(f"Threads: {threads}")

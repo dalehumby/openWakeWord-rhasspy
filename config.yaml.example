@@ -1,5 +1,8 @@
 # Configuration for using Open Wake Work with Rhasspy voice assistant
 
+# MQTT broker config
+# If running Rhasspy in Docker you'll need to run your own MQTT broker
+# and set Rhasspy MQTT to `external`.
 mqtt:
   broker: 127.0.0.1
   port: 1883
@@ -14,6 +17,9 @@ oww:
   enable_speex_noise_suppression: false
   activation_ratelimit: 5  # Only 1 activation will be sent to Rhasspy in 5 seconds
 
-rhasspy:
-  audio_udp_port: 12202  # Port that Rhasspy streams audio on, https://rhasspy.readthedocs.io/en/latest/tutorials/#udp-audio-streaming
-
+# Rhasspy microphone UDP ports, 1 per device/satellite
+# https://rhasspy.readthedocs.io/en/latest/tutorials/#udp-audio-streaming
+udp_ports:
+  base: 12202
+  kitchen: 12203
+  bedroom: 12204
