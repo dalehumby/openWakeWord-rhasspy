@@ -143,8 +143,8 @@ class Prediction(threading.Thread):
         Filter so that a wakeword is only triggered once per utterance.
 
         When simple moving average (of length `activation_samples`) crosses the `activation_threshold`
-        then trigger Rhasspy. Only "re-arm" the wakeword when the moving average drops below
-        the `deactivation_threshold`.
+        for the first time, then trigger Rhasspy. Only "re-arm" the wakeword when the moving average
+        drops below the `deactivation_threshold`.
         """
         try:
             self.filters[wakeword]["samples"].append(confidence)
@@ -155,9 +155,7 @@ class Prediction(threading.Thread):
                 ),
                 "active": False,
             }
-        moving_average = (
-            sum(self.filters[wakeword]["samples"]) / config["oww"]["activation_samples"]
-        )
+        moving_average = np.average(self.filters[wakeword]["samples"])
         activated = False
         if (
             not self.filters[wakeword]["active"]
