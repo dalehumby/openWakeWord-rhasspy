@@ -10,16 +10,17 @@ mqtt:
   password: mymqttpassword  # Login to broker. Delete if not required
 
 # Open Wake Word config
-# https://github.com/dscripka/openWakeWord#recommendations-for-usage
 oww:
-  activation_threshold: 0.5
+  activation_samples: 3  # Number of samples in moving average
+  activation_threshold: 0.7  # Trigger wakeword when average above this threshold
+  deactivation_threshold: 0.2  # Do not trigger again until average falls below this threshold
+  # OWW config, see https://github.com/dscripka/openWakeWord#recommendations-for-usage
   vad_threshold: 0.5
   enable_speex_noise_suppression: false
-  activation_ratelimit: 5  # Only 1 activation will be sent to Rhasspy in 5 seconds
 
 # Rhasspy microphone UDP ports, 1 per device/satellite
 # https://rhasspy.readthedocs.io/en/latest/tutorials/#udp-audio-streaming
 udp_ports:
-  base: 12202
-  kitchen: 12203
-  bedroom: 12204
+  base: 12202  # Delete or change as needed
+  kitchen: 12203  # Delete or change as needed
+  bedroom: 12204  # Delete or change as needed
