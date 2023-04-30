@@ -27,4 +27,4 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/openWakeWord-rhasspy:latest
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/openwakeword-rhasspy:latest
