@@ -114,6 +114,7 @@ class Prediction(threading.Thread):
             config["mqtt"]["username"], config["mqtt"]["password"]
         )
         self.mqtt.connect(config["mqtt"]["broker"], config["mqtt"]["port"], 60)
+        self.mqtt.loop_start()
         print("MQTT: Connected to broker", flush=True)
 
         self.oww = Model(
