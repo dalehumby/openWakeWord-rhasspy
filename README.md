@@ -115,10 +115,18 @@ On each Rhasspy, in Rhasspy - Settings - Wake Word, set `Hermes MQTT`, like
 
 ### openWakeWord
 
-openWakeWord listens for all wake-words like "alexa", "hey mycroft", "hey jarvis", and [others](https://github.com/dscripka/openWakeWord#pre-trained-models). These settings ensure Rhasspy is only activated once per wake-word, and help reduce false activations.
+openWakeWord listens for wake-words like "alexa", "hey mycroft", "hey jarvis", and [others](https://github.com/dscripka/openWakeWord#pre-trained-models). Use `model_names` to specify which wake-words to listen for. (See [Pre-Trained Models](https://github.com/dscripka/openWakeWord#pre-trained-models) documentation, and which [`model_names`](https://github.com/dscripka/openWakeWord/blob/main/openwakeword/__init__.py) to use.)
+
+Delete any wake-words that you don't want to activate on. Or remove the entire `model_names` section to use all pre-trained models.
 
 ```yaml
 oww:
+  model_names:  # From https://github.com/dscripka/openWakeWord/blob/main/openwakeword/__init__.py
+    - alexa  # Delete to ignore this wake-word
+    - hey_mycroft
+    - hey_jarvis
+    - timer
+    - weather
   activation_samples: 3  # Number of samples in moving average
   activation_threshold: 0.7  # Trigger wakeword when average above this threshold
   deactivation_threshold: 0.2  # Do not trigger again until average falls below this threshold
@@ -126,10 +134,11 @@ oww:
   vad_threshold: 0.5
   enable_speex_noise_suppression: false
 ```
+The other `oww` settings ensure Rhasspy is only activated once per wake-word, and help reduce false activations. 
 
 In the example above, the latest 3 audio samples received over UDP are averaged together, and if the average confidence that a wake-word has been spoken is above 0.7 (70%), then Rhasspy is notified. Rhasspy will not be notified again until the average confidence drops below 0.2 (20%), i.e. the wake-word has ended.
 
-Settings for voice activity detection (VAD) and noise suppression are also provided. See openWakeWord's [Recommendations for Usage](https://github.com/dscripka/openWakeWord#recommendations-for-usage).
+Settings for voice activity detection (VAD) and noise suppression are also provided. (See openWakeWord's [Recommendations for Usage](https://github.com/dscripka/openWakeWord#recommendations-for-usage).)
 
 ## Contributing
 Feel free to open an Issue if you have a problem, need help or have an idea. PRs always welcome.

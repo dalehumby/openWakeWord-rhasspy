@@ -50,6 +50,7 @@ def load_config(config_file):
             "password": None,
         },
         "oww": {
+            "model_names": ["alexa", "hey_mycroft", "hey_jarvis", "timer", "weather"],
             "activation_threshold": 0.7,
             "deactivation_threshold": 0.2,
             "activation_samples": 3,
@@ -125,17 +126,21 @@ class Prediction(threading.Thread):
         )
 
     def run(self):
-        """Wake word detection thread."""
+        """
+        Wake word detection thread.
+
+        Detect and filter all wake-words, but only publish to MQTT if wake-word model name is listed
+        in config.yaml.
+        """
         while True:
             roomname, timestamp, audio = self.queue.get()
             prediction = self.oww.predict(audio)
             for wakeword in prediction.keys():
                 confidence = prediction[wakeword]
-                if self.__filter(wakeword, confidence):
-                    print(
-                        f"Detected wakeword {wakeword} in {roomname}",
-                        flush=True,
-                    )
+                if (
+                    self.__filter(wakeword, confidence)
+                    and wakeword in config["oww"]["model_names"]
+                ):
                     self.__publish(wakeword, roomname)
 
     def __filter(self, wakeword, confidence):
@@ -188,7 +193,10 @@ class Prediction(threading.Thread):
             "customEntities": None,
         }
         self.mqtt.publish(f"hermes/hotword/{wakeword}/detected", dumps(payload))
-        print("MQTT: Published to Rhasspy", flush=True)
+        print(
+            "MQTT: Published wakeword {wakeword}, siteId {roomname} to Rhasspy",
+            flush=True,
+        )
 
 
 if __name__ == "__main__":

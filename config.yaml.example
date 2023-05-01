@@ -11,6 +11,12 @@ mqtt:
 
 # Open Wake Word config
 oww:
+  model_names:  # From https://github.com/dscripka/openWakeWord/blob/main/openwakeword/__init__.py
+    - alexa  # Delete to ignore this wake-word
+    - hey_mycroft
+    - hey_jarvis
+    - timer
+    - weather
   activation_samples: 3  # Number of samples in moving average
   activation_threshold: 0.7  # Trigger wakeword when average above this threshold
   deactivation_threshold: 0.2  # Do not trigger again until average falls below this threshold
