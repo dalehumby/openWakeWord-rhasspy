@@ -4,7 +4,7 @@
 
 [openWakeWord](https://github.com/dscripka/openWakeWord) is an open-source library for detecting common wake-words like "alexa", "hey mycroft", "hey jarvis", and [other models](https://github.com/dscripka/openWakeWord#pre-trained-models). [Rhasspy](https://rhasspy.readthedocs.io/en/latest/) is an open-source voice assistant.
 
-This project runs openWakeWord as a stand-alone service, receives audio from Rhasspy via UDP, detects when a wake-word is spoken, and then notifies Rhasspy using the Hermes MQTT protocol.
+This project runs openWakeWord as a stand-alone service, receives audio from Rhasspy via UDP, detects when a wake-word is spoken, and notifies Rhasspy using the Hermes MQTT protocol.
 
 ## Why
 I run Rhasspy in [Base/Satellite mode](https://rhasspy.readthedocs.io/en/latest/tutorials/#server-with-satellites). Currently each Satellite captures audio, does the wake-word detection locally and streams audio to the Base which does everything else. The Pi4 satellites runs the Rhasspy Docker container, launched with  [compose](https://github.com/dalehumby/rhasspy-config/blob/main/satellite-compose.yaml). The Base Rhasspy container runs on a more powerful i7 (runs other [home automation software](https://github.com/dalehumby/homelab).)
@@ -56,9 +56,9 @@ For testing and experimentation you can run this project locally:
 
 Rhasspy streams audio from its microphone to openWakeWord over the network using the UDP protocol. On each Rhasspy device that has a microhone attached (typically a [Satellite](https://rhasspy.readthedocs.io/en/latest/tutorials/#shared-mqtt-broker)) go to Rhasspy - Settings - Audio Recording and in `UDP Audio (Output)` insert the IP address of the host that's running openWakeWord, and choose a port number, usually starting at `12202`. If you have multiple Rhasspy devices then each device needs its own port number, `12202`, `12203`, `12204`, etc.
 
-![Screenshot 2023-04-30 at 18 33 12](https://user-images.githubusercontent.com/5817143/235364796-94a28009-4edd-4d0d-bdcb-bc413f013958.png)
+![Screenshot 2023-05-01 at 11 34 39](https://user-images.githubusercontent.com/5817143/235435660-23b847b9-2cd4-4800-bb54-3f8d415185e4.png)
 
-openWakeWord `config.yaml` would then have
+In openWakeWord `config.yaml`, `udp_ports` has kay:value pairs. The key is the `siteId` shown at the top of Rhasspy - Settings. It might be: `base`, `satellite`, `kitchen`, or `bedroom`, etc. The value is the port listed under Rhasspy - Settings - Audio Recording.
 
 ```yaml
 udp_ports:
@@ -92,13 +92,13 @@ Or in `docker-compose.yml`
 
 ### MQTT
 
-openWakeWord notifies Rhasspy that a wake-word has been spoken using the [Hermes MQTT](https://rhasspy.readthedocs.io/en/latest/wake-word/#mqtthermes) protocol. The MQTT broker needs to be accessible by both Rhasspy and openWakeWord. Rhasspy's internal MQTT broker is not reachable from outside of Rhasspy, so you will need to run your own, like [Eclipse Mosquitto](https://mosquitto.org/). 
+openWakeWord notifies Rhasspy that a wake-word has been spoken using the [Hermes MQTT](https://rhasspy.readthedocs.io/en/latest/wake-word/#mqtthermes) protocol. The MQTT broker needs to be accessible by both Rhasspy and openWakeWord. Rhasspy's internal MQTT broker is not reachable from outside of Rhasspy, so you will need to run a [shared broker](https://rhasspy.readthedocs.io/en/latest/tutorials/#shared-mqtt-broker), like [Mosquitto](https://mosquitto.org/).
 
 Once the broker is running, go to Rhasspy - Settings - MQTT. Choose `External` broker, set the IP address of the `Host` that the broker is running on, the `Port` number, and the `Username`/`Password` if required, similar to:
 
 ![Screenshot 2023-04-30 at 18 25 56](https://user-images.githubusercontent.com/5817143/235364431-75d50e0a-2e11-413f-96ff-66c76c83ac6d.png)
 
-OpenWakeWord `config.yaml` would then have:
+openWakeWord `config.yaml` would then have:
 
 ```yaml
 mqtt:
@@ -115,7 +115,7 @@ On each Rhasspy, in Rhasspy - Settings - Wake Word, set `Hermes MQTT`, like
 
 ### openWakeWord
 
-openWakeWord listens for all wake-words like "alexa", "hey mycroft", "hey jarvis", and [others](https://github.com/dscripka/openWakeWord#pre-trained-models). These settings to ensure Rhasspy is only activated once per wake-word, and to reduce false activations. 
+openWakeWord listens for all wake-words like "alexa", "hey mycroft", "hey jarvis", and [others](https://github.com/dscripka/openWakeWord#pre-trained-models). These settings ensure Rhasspy is only activated once per wake-word, and help reduce false activations.
 
 ```yaml
 oww:
