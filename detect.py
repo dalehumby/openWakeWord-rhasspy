@@ -119,6 +119,7 @@ class Prediction(threading.Thread):
         print("MQTT: Connected to broker", flush=True)
 
         self.oww = Model(
+            # wakeword_model_names=["hey_mycroft", "dog"],
             vad_threshold=config["oww"]["vad_threshold"],
             enable_speex_noise_suppression=config["oww"][
                 "enable_speex_noise_suppression"
@@ -194,7 +195,7 @@ class Prediction(threading.Thread):
         }
         self.mqtt.publish(f"hermes/hotword/{wakeword}/detected", dumps(payload))
         print(
-            "MQTT: Published wakeword {wakeword}, siteId {roomname} to Rhasspy",
+            f"MQTT: Published wakeword {wakeword}, siteId {roomname} to Rhasspy",
             flush=True,
         )
 
