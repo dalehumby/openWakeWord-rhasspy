@@ -9,4 +9,4 @@ COPY requirements.txt .
 RUN pip3 install -r requirements.txt
 COPY detect.py .
 
-CMD [ "python3", "detect.py", "-c", "/config/config.yaml"]
+CMD [ "python3", "-u", "detect.py", "-c", "/config/config.yaml"]

@@ -63,8 +63,7 @@ def load_config(config_file):
     config = {**default_config, **config_override}
     if not config["udp_ports"]:
         print(
-            "No UDP ports configured. Configure UDP ports to receive audio for wakeword detection.",
-            flush=True,
+            "No UDP ports configured. Configure UDP ports to receive audio for wakeword detection."
         )
         exit()
     return config
@@ -84,9 +83,7 @@ class RhasspyUdpAudio(threading.Thread):
 
     def run(self):
         """Thread to receive UDP audio and add to processing queue."""
-        print(
-            f"Listening for {self.roomname} audio on UDP port {self.port}", flush=True
-        )
+        print(f"Listening for {self.roomname} audio on UDP port {self.port}")
         while True:
             data, addr = self.sock.recvfrom(RHASSPY_BYTES)
             audio = wave.open(io.BytesIO(data))
@@ -116,7 +113,7 @@ class Prediction(threading.Thread):
         )
         self.mqtt.connect(config["mqtt"]["broker"], config["mqtt"]["port"], 60)
         self.mqtt.loop_start()
-        print("MQTT: Connected to broker", flush=True)
+        print("MQTT: Connected to broker")
 
         self.oww = Model(
             # wakeword_model_names=["hey_mycroft", "dog"],
@@ -175,9 +172,7 @@ class Prediction(threading.Thread):
         ):
             self.filters[wakeword]["active"] = False
         if moving_average > 0.1:
-            print(
-                f"{wakeword:<16} {activated!s:<8} {self.filters[wakeword]}", flush=True
-            )
+            print(f"{wakeword:<16} {activated!s:<8} {self.filters[wakeword]}")
         return activated
 
     def __publish(self, wakeword, roomname):
@@ -194,10 +189,7 @@ class Prediction(threading.Thread):
             "customEntities": None,
         }
         self.mqtt.publish(f"hermes/hotword/{wakeword}/detected", dumps(payload))
-        print(
-            f"MQTT: Published wakeword {wakeword}, siteId {roomname} to Rhasspy",
-            flush=True,
-        )
+        print(f"MQTT: Published wakeword {wakeword}, siteId {roomname} to Rhasspy")
 
 
 if __name__ == "__main__":
